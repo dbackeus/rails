@@ -155,6 +155,7 @@ platforms :ruby, :windows do
 
   # Active Record.
   gem "sqlite3", "~> 1.6", ">= 1.6.6"
+  gem "extralite", "~> 2.2"
 
   group :db do
     gem "pg", "~> 1.3"

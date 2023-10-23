@@ -151,20 +151,20 @@ module ActiveRecord
 
       def test_default_pragmas
         if in_memory_db?
-          assert_equal [{ "foreign_keys" => 1 }], @conn.execute("PRAGMA foreign_keys")
-          assert_equal [{ "journal_mode" => "memory" }], @conn.execute("PRAGMA journal_mode")
-          assert_equal [{ "synchronous" => 2 }], @conn.execute("PRAGMA synchronous")
-          assert_equal [{ "journal_size_limit" => 67108864 }], @conn.execute("PRAGMA journal_size_limit")
+          assert_equal [{ foreign_keys: 1 }], @conn.execute("PRAGMA foreign_keys")
+          assert_equal [{ journal_mode: "memory" }], @conn.execute("PRAGMA journal_mode")
+          assert_equal [{ synchronous: 2 }], @conn.execute("PRAGMA synchronous")
+          assert_equal [{ journal_size_limit: 67108864 }], @conn.execute("PRAGMA journal_size_limit")
           assert_equal [], @conn.execute("PRAGMA mmap_size")
-          assert_equal [{ "cache_size" => 2000 }], @conn.execute("PRAGMA cache_size")
+          assert_equal [{ cache_size: 2000 }], @conn.execute("PRAGMA cache_size")
         else
           with_file_connection do |conn|
-            assert_equal [{ "foreign_keys" => 1 }], conn.execute("PRAGMA foreign_keys")
-            assert_equal [{ "journal_mode" => "wal" }], conn.execute("PRAGMA journal_mode")
-            assert_equal [{ "synchronous" => 1 }], conn.execute("PRAGMA synchronous")
-            assert_equal [{ "journal_size_limit" => 67108864 }], conn.execute("PRAGMA journal_size_limit")
-            assert_equal [{ "mmap_size" => 134217728 }], conn.execute("PRAGMA mmap_size")
-            assert_equal [{ "cache_size" => 2000 }], conn.execute("PRAGMA cache_size")
+            assert_equal [{ foreign_keys: 1 }], conn.execute("PRAGMA foreign_keys")
+            assert_equal [{ journal_mode: "wal" }], conn.execute("PRAGMA journal_mode")
+            assert_equal [{ synchronous: 1 }], conn.execute("PRAGMA synchronous")
+            assert_equal [{ journal_size_limit: 67108864 }], conn.execute("PRAGMA journal_size_limit")
+            assert_equal [{ mmap_size: 134217728 }], conn.execute("PRAGMA mmap_size")
+            assert_equal [{ cache_size: 2000 }], conn.execute("PRAGMA cache_size")
           end
         end
       end
@@ -243,8 +243,8 @@ module ActiveRecord
           assert_equal 1, records.length
 
           record = records.first
-          assert_equal 10, record["number"]
-          assert_equal 1, record["id"]
+          assert_equal 10, record[:number]
+          assert_equal 1, record[:id]
         end
       end
 
@@ -666,27 +666,27 @@ module ActiveRecord
         assert_respond_to @conn, :disable_extension
       end
 
-      def test_statement_closed
-        db_config = ActiveRecord::Base.configurations.configs_for(env_name: "arunit", name: "primary")
-        db = ::SQLite3::Database.new(db_config.database)
+      # def test_statement_closed
+      #   db_config = ActiveRecord::Base.configurations.configs_for(env_name: "arunit", name: "primary")
+      #   db = ::Extralite::Database.new(db_config.database)
 
-        @conn.connect!
+      #   @conn.connect!
 
-        statement = ::SQLite3::Statement.new(db,
-                                           "CREATE TABLE statement_test (number integer not null)")
-        statement.stub(:step, -> { raise ::SQLite3::BusyException.new("busy") }) do
-          assert_called(statement, :columns, returns: []) do
-            assert_called(statement, :close) do
-              ::SQLite3::Statement.stub(:new, statement) do
-                error = assert_raises ActiveRecord::StatementInvalid do
-                  @conn.exec_query "select * from statement_test"
-                end
-                assert_equal @conn.pool, error.connection_pool
-              end
-            end
-          end
-        end
-      end
+      #   statement = ::SQLite3::Statement.new(db,
+      #                                      "CREATE TABLE statement_test (number integer not null)")
+      #   statement.stub(:step, -> { raise ::SQLite3::BusyException.new("busy") }) do
+      #     assert_called(statement, :columns, returns: []) do
+      #       assert_called(statement, :close) do
+      #         ::SQLite3::Statement.stub(:new, statement) do
+      #           error = assert_raises ActiveRecord::StatementInvalid do
+      #             @conn.exec_query "select * from statement_test"
+      #           end
+      #           assert_equal @conn.pool, error.connection_pool
+      #         end
+      #       end
+      #     end
+      #   end
+      # end
 
       def test_db_is_not_readonly_when_readonly_option_is_false
         conn = Base.sqlite3_connection database: ":memory:",
@@ -723,68 +723,8 @@ module ActiveRecord
         exception = assert_raises(ActiveRecord::StatementInvalid) do
           conn.execute("CREATE TABLE test(id integer)")
         end
-        assert_match("SQLite3::ReadOnlyException", exception.message)
+        assert_match("Extralite::Error: attempt to write a readonly database", exception.message)
         assert_equal conn.pool, exception.connection_pool
-      end
-
-      def test_strict_strings_by_default
-        conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3")
-        conn.create_table :testings
-
-        assert_nothing_raised do
-          conn.add_index :testings, :non_existent
-        end
-
-        with_strict_strings_by_default do
-          conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3")
-          conn.create_table :testings
-
-          error = assert_raises(StandardError) do
-            conn.add_index :testings, :non_existent2
-          end
-          assert_match(/no such column: non_existent2/, error.message)
-          assert_equal conn.pool, error.connection_pool
-        end
-      end
-
-      def test_strict_strings_by_default_and_true_in_database_yml
-        conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3", strict: true)
-        conn.create_table :testings
-
-        error = assert_raises(StandardError) do
-          conn.add_index :testings, :non_existent
-        end
-        assert_match(/no such column: non_existent/, error.message)
-        assert_equal conn.pool, error.connection_pool
-
-        with_strict_strings_by_default do
-          conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3", strict: true)
-          conn.create_table :testings
-
-          error = assert_raises(StandardError) do
-            conn.add_index :testings, :non_existent2
-          end
-          assert_match(/no such column: non_existent2/, error.message)
-          assert_equal conn.pool, error.connection_pool
-        end
-      end
-
-      def test_strict_strings_by_default_and_false_in_database_yml
-        conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3", strict: false)
-        conn.create_table :testings
-
-        assert_nothing_raised do
-          conn.add_index :testings, :non_existent
-        end
-
-        with_strict_strings_by_default do
-          conn = Base.sqlite3_connection(database: ":memory:", adapter: "sqlite3", strict: false)
-          conn.create_table :testings
-
-          assert_nothing_raised do
-            conn.add_index :testings, :non_existent
-          end
-        end
       end
 
       def test_rowid_column

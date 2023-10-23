@@ -13,6 +13,45 @@ require "active_record/connection_adapters/sqlite3/schema_statements"
 
 gem "sqlite3", "~> 1.4"
 require "sqlite3"
+require "extralite"
+
+module Extralite
+  class Database
+    def transaction(mode = :deferred)
+      execute "begin #{mode} transaction"
+
+      if block_given?
+        abort = false
+        begin
+          yield self
+        rescue
+          abort = true
+          raise
+        ensure
+          abort and rollback or commit
+        end
+      end
+
+      true
+    end
+
+    def commit
+      execute "commit transaction"
+      true
+    end
+
+    def rollback
+      execute "rollback transaction"
+      true
+    end
+
+    def encoding
+      "UTF-8"
+    end
+
+    alias readonly? read_only?
+  end
+end
 
 module ActiveRecord
   module ConnectionHandling # :nodoc:
@@ -39,7 +78,7 @@ module ActiveRecord
 
       class << self
         def new_client(config)
-          ::SQLite3::Database.new(config[:database].to_s, config)
+          ::Extralite::Database.new(config[:database].to_s, read_only: config[:readonly])
         rescue Errno::ENOENT => error
           if error.message.include?("No such file or directory")
             raise ActiveRecord::NoDatabaseError
@@ -717,7 +756,7 @@ module ActiveRecord
           if @config[:timeout] && @config[:retries]
             raise ArgumentError, "Cannot specify both timeout and retries arguments"
           elsif @config[:timeout]
-            @raw_connection.busy_timeout(self.class.type_cast_config_to_integer(@config[:timeout]))
+            @raw_connection.busy_timeout = self.class.type_cast_config_to_integer(@config[:timeout])
           elsif @config[:retries]
             retries = self.class.type_cast_config_to_integer(@config[:retries])
             raw_connection.busy_handler do |count|
