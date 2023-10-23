@@ -208,6 +208,7 @@ GEM
       tzinfo
     event_emitter (0.2.6)
     execjs (2.8.1)
+    extralite (2.2)
     faraday (1.10.2)
       faraday-em_http (~> 1.0)
       faraday-em_synchrony (~> 1.0)
@@ -587,6 +588,7 @@ DEPENDENCIES
   debug (>= 1.1.0)
   delayed_job
   delayed_job_active_record
+  extralite (~> 2.2)
   google-cloud-storage (~> 1.11)
   image_processing (~> 1.2)
   importmap-rails

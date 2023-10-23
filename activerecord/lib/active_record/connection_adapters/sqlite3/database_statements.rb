@@ -35,20 +35,20 @@ module ActiveRecord
               unless prepare
                 stmt = conn.prepare(sql)
                 begin
-                  cols = stmt.columns
+                  cols = stmt.columns.map(&:to_s)
                   unless without_prepared_statement?(binds)
-                    stmt.bind_params(type_casted_binds)
+                    stmt.bind(*type_casted_binds)
                   end
-                  records = stmt.to_a
+                  records = stmt.to_a_ary
                 ensure
                   stmt.close
                 end
               else
                 stmt = @statements[sql] ||= conn.prepare(sql)
-                cols = stmt.columns
-                stmt.reset!
-                stmt.bind_params(type_casted_binds)
-                records = stmt.to_a
+                cols = stmt.columns.map(&:to_s)
+                stmt.reset
+                stmt.bind(*type_casted_binds)
+                records = stmt.to_a_ary
               end
 
               build_result(columns: cols, rows: records)
@@ -112,7 +112,7 @@ module ActiveRecord
           def raw_execute(sql, name, async: false, allow_retry: false, materialize_transactions: false)
             log(sql, name, async: async) do
               with_raw_connection(allow_retry: allow_retry, materialize_transactions: materialize_transactions) do |conn|
-                conn.execute(sql)
+                conn.query(sql)
               end
             end
           end
